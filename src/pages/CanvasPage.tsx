@@ -34,6 +34,7 @@ import {
 import { LivePresence } from '../components/LivePresence'
 import { ensureTab, openExternal } from '../lib/desktop'
 import { Stage } from '../components/Stage'
+import { MobileViewer } from '../components/MobileViewer'
 import {
   COMPONENT_DRAG_TYPE,
   LIBRARY_COMPONENT_DRAG_TYPE,
@@ -881,6 +882,10 @@ export function CanvasPage({
       </AuthScreen>
     )
   }
+
+  /* a phone gets the viewer: one frame at a time and element comments, the
+     editor's canvas being more than mobile Safari can hold */
+  if (isMobile) return <MobileViewer />
 
   return (
     /* --app-inset is 0 normally; the impersonation shell raises it so this
