@@ -415,6 +415,16 @@ export function Stage({
       if (!sameFrameIdSet(next, mountedIdsRef.current)) setCameraSample(vp)
     }
     const syncMountedThrottled = throttle(syncMounted, 150)
+    /* fingers resting mid-pinch are not a settled camera: wait for them to lift */
+    const settleCamera = () => {
+      if (gesture.pinching) {
+        settle = window.setTimeout(settleCamera, 250)
+        return
+      }
+      const vp = useStore.getState().viewport
+      syncMounted(vp)
+      setLayoutZoom(layoutZoomFor(vp.zoom, safeCapRef.current))
+    }
     const unsub = useStore.subscribe((s, prev) => {
       const sameCanvas = s.canvas?.id === prev.canvas?.id
       if (!sameCanvas) pageCameras.current.clear()
@@ -440,14 +450,13 @@ export function Stage({
          for the throttle's wait, they make the zoomed-out world's layer huge */
       if (s.viewport.zoom < prev.viewport.zoom && s.viewport.zoom < mountPolicyRef.current.overviewZoom)
         syncMounted(s.viewport)
-      else syncMountedThrottled(s.viewport)
+      /* a pinch mounts nothing until it settles: a frame's document and layers
+         landing mid-pinch, while WebKit re-rasters the scaling world, can take
+         an iPhone tab past its memory limit */
+      else if (!gesture.pinching) syncMountedThrottled(s.viewport)
       if (ref.current) sendViewport(s.viewport, ref.current)
       window.clearTimeout(settle)
-      settle = window.setTimeout(() => {
-        const vp = useStore.getState().viewport
-        syncMounted(vp)
-        setLayoutZoom(layoutZoomFor(vp.zoom, safeCapRef.current))
-      }, 250)
+      settle = window.setTimeout(settleCamera, 250)
     })
     return () => {
       unsub()
@@ -872,12 +881,35 @@ export function Stage({
       })
       prev = cur
     }
+    /* a touch keeps its target after that node leaves the DOM (the overview
+       unmounting the frame a pinch started on), and its touchend then never
+       bubbles up to the stage: hear it on the target itself */
+    const watched = new Set<EventTarget>()
+    const onDetachedEnd = (e: Event) => {
+      if (e instanceof TouchEvent && !(e.target instanceof Node && el.contains(e.target))) onEnd(e)
+    }
+    function watchTargets(touches: TouchList) {
+      for (const { target } of Array.from(touches)) {
+        if (watched.has(target)) continue
+        watched.add(target)
+        target.addEventListener('touchend', onDetachedEnd)
+        target.addEventListener('touchcancel', onDetachedEnd)
+      }
+    }
+    function unwatchTargets() {
+      for (const target of watched) {
+        target.removeEventListener('touchend', onDetachedEnd)
+        target.removeEventListener('touchcancel', onDetachedEnd)
+      }
+      watched.clear()
+    }
     function onStart(e: TouchEvent) {
       if (e.touches.length < 2) return
       e.preventDefault()
       prev = pinchOf(e.touches)
       pending = null
       gesture.pinching = true
+      watchTargets(e.touches)
     }
     function onMove(e: TouchEvent) {
       if (!prev || e.touches.length < 2) return
@@ -902,6 +934,7 @@ export function Stage({
       prev = null
       pending = null
       gesture.pinching = false
+      unwatchTargets()
     }
     el.addEventListener('touchstart', onStart, { passive: false })
     el.addEventListener('touchmove', onMove, { passive: false })
@@ -913,6 +946,7 @@ export function Stage({
       el.removeEventListener('touchend', onEnd)
       el.removeEventListener('touchcancel', onEnd)
       if (raf) cancelAnimationFrame(raf)
+      unwatchTargets()
       gesture.pinching = false
     }
   }, [])

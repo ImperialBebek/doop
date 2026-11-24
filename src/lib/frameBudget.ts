@@ -133,7 +133,6 @@ export function selectMountedFrames(
 
   const deferOverview =
     policy.overviewZoom > 0 && viewport.zoom < policy.overviewZoom && visibleTotalPixels > policy.maxCssPixels
-  if (deferOverview) return mounted
 
   const byCenter = (a: FrameBounds, b: FrameBounds) =>
     centerDistanceSq(a, viewCenterX, viewCenterY) - centerDistanceSq(b, viewCenterX, viewCenterY)
@@ -162,6 +161,9 @@ export function selectMountedFrames(
   }
 
   for (const f of priorityOnScreen) tryMount(f)
+  /* an overview defers everything but the selected or streaming frame, so focusing a
+     tall frame (fit zoom far below the overview threshold) still shows it */
+  if (deferOverview) return mounted
   for (const f of onScreen) tryMount(f)
   for (const f of inMargin) tryMount(f)
 
