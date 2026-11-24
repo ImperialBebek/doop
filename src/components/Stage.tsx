@@ -440,7 +440,10 @@ export function Stage({
          for the throttle's wait, they make the zoomed-out world's layer huge */
       if (s.viewport.zoom < prev.viewport.zoom && s.viewport.zoom < mountPolicyRef.current.overviewZoom)
         syncMounted(s.viewport)
-      else syncMountedThrottled(s.viewport)
+      /* a pinch mounts nothing until it settles: a frame's document and layers
+         landing mid-pinch, while WebKit re-rasters the scaling world, can take
+         an iPhone tab past its memory limit */
+      else if (!gesture.pinching) syncMountedThrottled(s.viewport)
       if (ref.current) sendViewport(s.viewport, ref.current)
       window.clearTimeout(settle)
       settle = window.setTimeout(() => {
