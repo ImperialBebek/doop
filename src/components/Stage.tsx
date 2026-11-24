@@ -881,12 +881,35 @@ export function Stage({
       })
       prev = cur
     }
+    /* a touch keeps its target after that node leaves the DOM (the overview
+       unmounting the frame a pinch started on), and its touchend then never
+       bubbles up to the stage: hear it on the target itself */
+    const watched = new Set<EventTarget>()
+    const onDetachedEnd = (e: Event) => {
+      if (e instanceof TouchEvent && !(e.target instanceof Node && el.contains(e.target))) onEnd(e)
+    }
+    function watchTargets(touches: TouchList) {
+      for (const { target } of Array.from(touches)) {
+        if (watched.has(target)) continue
+        watched.add(target)
+        target.addEventListener('touchend', onDetachedEnd)
+        target.addEventListener('touchcancel', onDetachedEnd)
+      }
+    }
+    function unwatchTargets() {
+      for (const target of watched) {
+        target.removeEventListener('touchend', onDetachedEnd)
+        target.removeEventListener('touchcancel', onDetachedEnd)
+      }
+      watched.clear()
+    }
     function onStart(e: TouchEvent) {
       if (e.touches.length < 2) return
       e.preventDefault()
       prev = pinchOf(e.touches)
       pending = null
       gesture.pinching = true
+      watchTargets(e.touches)
     }
     function onMove(e: TouchEvent) {
       if (!prev || e.touches.length < 2) return
@@ -911,6 +934,7 @@ export function Stage({
       prev = null
       pending = null
       gesture.pinching = false
+      unwatchTargets()
     }
     el.addEventListener('touchstart', onStart, { passive: false })
     el.addEventListener('touchmove', onMove, { passive: false })
@@ -922,6 +946,7 @@ export function Stage({
       el.removeEventListener('touchend', onEnd)
       el.removeEventListener('touchcancel', onEnd)
       if (raf) cancelAnimationFrame(raf)
+      unwatchTargets()
       gesture.pinching = false
     }
   }, [])
