@@ -415,6 +415,16 @@ export function Stage({
       if (!sameFrameIdSet(next, mountedIdsRef.current)) setCameraSample(vp)
     }
     const syncMountedThrottled = throttle(syncMounted, 150)
+    /* fingers resting mid-pinch are not a settled camera: wait for them to lift */
+    const settleCamera = () => {
+      if (gesture.pinching) {
+        settle = window.setTimeout(settleCamera, 250)
+        return
+      }
+      const vp = useStore.getState().viewport
+      syncMounted(vp)
+      setLayoutZoom(layoutZoomFor(vp.zoom, safeCapRef.current))
+    }
     const unsub = useStore.subscribe((s, prev) => {
       const sameCanvas = s.canvas?.id === prev.canvas?.id
       if (!sameCanvas) pageCameras.current.clear()
@@ -446,11 +456,7 @@ export function Stage({
       else if (!gesture.pinching) syncMountedThrottled(s.viewport)
       if (ref.current) sendViewport(s.viewport, ref.current)
       window.clearTimeout(settle)
-      settle = window.setTimeout(() => {
-        const vp = useStore.getState().viewport
-        syncMounted(vp)
-        setLayoutZoom(layoutZoomFor(vp.zoom, safeCapRef.current))
-      }, 250)
+      settle = window.setTimeout(settleCamera, 250)
     })
     return () => {
       unsub()
