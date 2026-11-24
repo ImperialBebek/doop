@@ -2322,7 +2322,12 @@ export const FrameView = memo(function FrameView({
               is outlined in full while its content stays clipped. The layer
               covers the surface, where the document starts, so a rect in
               design px lands on the element it measures */}
-            <div data-element-furniture="" className="pointer-events-none absolute inset-0">
+            {/* `contents`, like the comment UI below: the chrome is composited (it
+              overlaps the iframe), and WebKit backs a composited layer at the frame's
+              full size as soon as it holds an empty positioned box, doubling the
+              frame's memory on iOS. The children position against the chrome, which
+              has the same box */}
+            <div data-element-furniture="" className="pointer-events-none contents">
               {frameCommentHover && (
                 <div
                   data-frame-comment-hover=""
@@ -2487,7 +2492,7 @@ export const FrameView = memo(function FrameView({
             {(() => {
               const anchor = editing ? activeHit : probe
               return (
-                <div data-comment-ui className="pointer-events-none absolute inset-0">
+                <div data-comment-ui className="pointer-events-none contents">
                   {comments.map((c) => {
                     const pos = isFrameComment(c) ? { x: c.x, y: c.y } : elementCommentPosition(c, pinPos[c.id])
                     const open = openThread === c.id
