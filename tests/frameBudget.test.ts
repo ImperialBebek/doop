@@ -42,6 +42,16 @@ describe('frameBudget', () => {
     expect(mounted.size).toBe(0)
   })
 
+  it('keeps the selected giant frame mounted when focus-to-fit lands below the overview zoom', () => {
+    const frames = makeChartRow()
+    const table = frames[10]!
+    const policy = frameMountPolicy({ isMobile: true, density: false, dpr: 3 })
+    const zoom = 746 / table.height
+    const vp = { x: 210 - (table.x + table.width / 2) * zoom, y: -table.y * zoom, zoom }
+    const mounted = selectMountedFrames(frames, vp, { width: 420, height: 746 }, new Set([table.id]), policy)
+    expect([...mounted]).toEqual([table.id])
+  })
+
   it('mounts only the single focused giant frame even when its area exceeds the pixel budget', () => {
     const frames = makeChartRow()
     const table = frames[10]!

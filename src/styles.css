@@ -371,10 +371,13 @@
   }
 }
 
-/* the canvas page: no pinch or double-tap page zoom anywhere on it (CanvasPage). Zero
-   specificity, so an element's own touch-action (the stage's touch-none) wins */
-:where(html.no-page-zoom, html.no-page-zoom *) {
-  touch-action: pan-x pan-y;
+/* the canvas page: no pinch or double-tap page zoom anywhere on it (CanvasPage). In the
+   base layer, so Tailwind's touch-* utilities (the stage's touch-none) still win: an
+   unlayered rule would beat every layered one whatever its specificity */
+@layer base {
+  :where(html.no-page-zoom, html.no-page-zoom *) {
+    touch-action: pan-x pan-y;
+  }
 }
 
 @layer base {
